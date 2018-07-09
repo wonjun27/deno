@@ -23,7 +23,17 @@ TEST(MockRuntimeTest, ErrorsCorrectly) {
   deno_delete(d);
 }
 
-deno_buf strbuf(const char* str) { return deno_buf{str, strlen(str)}; }
+deno_buf strbuf(const char* str) {
+  auto len = strlen(str);
+
+  deno_buf buf;
+  buf.alloc_ptr = reinterpret_cast<uint8_t*>(strdup(str));
+  buf.alloc_len = len + 1;
+  buf.data_ptr = buf.alloc_ptr;
+  buf.data_len = len;
+
+  return buf;
+}
 
 TEST(MockRuntimeTest, SendSuccess) {
   Deno* d = deno_new(nullptr, nullptr);
@@ -51,10 +61,10 @@ TEST(MockRuntimeTest, RecvReturnEmpty) {
   static int count = 0;
   Deno* d = deno_new(nullptr, [](auto _, auto buf) {
     count++;
-    EXPECT_EQ(static_cast<size_t>(3), buf.len);
-    EXPECT_EQ(buf.data[0], 'a');
-    EXPECT_EQ(buf.data[1], 'b');
-    EXPECT_EQ(buf.data[2], 'c');
+    EXPECT_EQ(static_cast<size_t>(3), buf.data_len);
+    EXPECT_EQ(buf.data_ptr[0], 'a');
+    EXPECT_EQ(buf.data_ptr[1], 'b');
+    EXPECT_EQ(buf.data_ptr[2], 'c');
   });
   EXPECT_TRUE(deno_execute(d, "a.js", "RecvReturnEmpty()"));
   EXPECT_EQ(count, 2);
@@ -65,10 +75,10 @@ TEST(MockRuntimeTest, RecvReturnBar) {
   static int count = 0;
   Deno* d = deno_new(nullptr, [](auto deno, auto buf) {
     count++;
-    EXPECT_EQ(static_cast<size_t>(3), buf.len);
-    EXPECT_EQ(buf.data[0], 'a');
-    EXPECT_EQ(buf.data[1], 'b');
-    EXPECT_EQ(buf.data[2], 'c');
+    EXPECT_EQ(static_cast<size_t>(3), buf.data_len);
+    EXPECT_EQ(buf.data_ptr[0], 'a');
+    EXPECT_EQ(buf.data_ptr[1], 'b');
+    EXPECT_EQ(buf.data_ptr[2], 'c');
     deno_set_response(deno, strbuf("bar"));
   });
   EXPECT_TRUE(deno_execute(d, "a.js", "RecvReturnBar()"));
@@ -98,8 +108,8 @@ TEST(MockRuntimeTest, ErrorHandling) {
   static int count = 0;
   Deno* d = deno_new(nullptr, [](auto deno, auto buf) {
     count++;
-    EXPECT_EQ(static_cast<size_t>(1), buf.len);
-    EXPECT_EQ(buf.data[0], 42);
+    EXPECT_EQ(static_cast<size_t>(1), buf.data_len);
+    EXPECT_EQ(buf.data_ptr[0], 42);
   });
   EXPECT_FALSE(deno_execute(d, "a.js", "ErrorHandling()"));
   EXPECT_EQ(count, 1);

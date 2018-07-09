@@ -7,10 +7,6 @@ function assert(cond) {
   if (!cond) throw Error("mock_runtime.js assert failed");
 }
 
-global.typedArrayToArrayBuffer = ta => {
-  return ta.buffer.slice(ta.byteOffset, ta.byteOffset + ta.byteLength);
-};
-
 global.CanCallFunction = () => {
   deno.print("Hello world from foo");
   return "foo";
@@ -41,22 +37,20 @@ global.SendByteLength = () => {
 };
 
 global.RecvReturnEmpty = () => {
-  const ui8 = new Uint8Array("abc".split("").map(c => c.charCodeAt(0)));
-  const ab = typedArrayToArrayBuffer(ui8);
-  let r = deno.send(ab);
-  assert(r == null);
-  r = deno.send(ab);
-  assert(r == null);
+  const m1 = new Uint8Array("abc".split("").map(c => c.charCodeAt(0)));
+  const m2 = m1.slice();
+  const r1 = deno.send(m1);
+  assert(r1 == null);
+  const r2 = deno.send(m2);
+  assert(r2 == null);
 };
 
 global.RecvReturnBar = () => {
-  const ui8 = new Uint8Array("abc".split("").map(c => c.charCodeAt(0)));
-  const ab = typedArrayToArrayBuffer(ui8);
-  const r = deno.send(ab);
-  assert(r instanceof ArrayBuffer);
+  const m = new Uint8Array("abc".split("").map(c => c.charCodeAt(0)));
+  const r = deno.send(m);
+  assert(r instanceof Uint8Array);
   assert(r.byteLength === 3);
-  const rui8 = new Uint8Array(r);
-  const rstr = String.fromCharCode(...rui8);
+  const rstr = String.fromCharCode(...r);
   assert(rstr === "bar");
 };
 
@@ -82,7 +76,7 @@ global.ErrorHandling = () => {
     assert(line === 3);
     assert(col === 1);
     assert(error instanceof Error);
-    deno.send(typedArrayToArrayBuffer(new Uint8Array([42])));
+    deno.send(new Uint8Array([42]));
   };
   eval("\n\n notdefined()\n//# sourceURL=helloworld.js");
 };
